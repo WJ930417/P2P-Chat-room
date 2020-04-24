@@ -43,11 +43,12 @@ public class ChatMain extends javax.swing.JFrame {
 	int dirport = 40060;
 	int cliport = 40061;
 	int hostingport;
-	int rating = 0;
+	int rating = 1;
 	Socket sock;
 	BufferedReader reader;
 	PrintWriter writer;
 	ArrayList<String> userList = new ArrayList<>();
+	ArrayList<String> preUserList = new ArrayList<>();
 
 	ArrayList<String> allOnlineUsers = new ArrayList<>();
 	ArrayList<String> allHostUsers = new ArrayList<>();
@@ -56,6 +57,7 @@ public class ChatMain extends javax.swing.JFrame {
 	Boolean isConnectedToDirServer = false;
 
 	DatagramSocket mainSocket;
+	PeerServer p2p;
 
 	/**
 	 * Creates new form Chat.
@@ -110,9 +112,7 @@ public class ChatMain extends javax.swing.JFrame {
 			String stream, done = "Done", connect = "Connect", disconnect = "Disconnect", chat = "Chat";
 			try {
 				while ((stream = reader.readLine()) != null) {
-
 					data = stream.split(":");
-
 					if (data[2].equals(chat)) {
 						chatTextArea.append(data[0] + ": " + data[1] + "\n");
 						chatTextArea.setCaretPosition(chatTextArea.getDocument().getLength());
@@ -129,14 +129,82 @@ public class ChatMain extends javax.swing.JFrame {
 
 						usersList.setText("");
 						writeUsers();
+						preUserList.clear();
+						for (int i = 0; i < userList.size(); i++) {
+							preUserList.add(userList.get(i));
+						}
+
 						userList.clear();
-
 					}
-
 				}
+				chatTextArea.append("Host failed!\n");
+				chatTextArea.append(preUserList.get(1) + " is the new host!!\n");
+
+				// start new host server and add all alive clients
+				changeHost();
+
 			} catch (Exception ex) {
+
 			}
 		}
+	}
+
+	public void changeHost() {
+		username = usernameFieldOnline.getText();
+		try {
+			DatagramSocket datagramSocket = new DatagramSocket();
+			InetAddress receiverAddress = InetAddress.getLocalHost();
+
+			String messageToSend = "CL:LI:" + username;
+
+			byte[] buffer = messageToSend.getBytes();
+
+			DatagramPacket packet = new DatagramPacket(buffer, buffer.length, receiverAddress, dirport);
+			datagramSocket.send(packet);
+
+			datagramSocket.close();
+
+		} catch (Exception ex) {
+
+		}
+		ListenThreadDir();
+
+		if (username.equals(preUserList.get(1))) {
+			p2p = new PeerServer(hostingport);
+			p2p.setVisible(true);
+
+			try {
+				DatagramSocket datagramSocket = new DatagramSocket();
+				String messageToSend = "CL:FH:" + username + ":" + serverIP + ":" + hostingport + ":" + rating;
+
+				byte[] buffer = messageToSend.getBytes();
+				InetAddress receiverAddress = InetAddress.getLocalHost();
+
+				DatagramPacket packet = new DatagramPacket(buffer, buffer.length, receiverAddress, dirport);
+				datagramSocket.send(packet);
+				datagramSocket.close();
+
+			} catch (Exception ex) {
+				textAllUsersOnline.append("Cannot Connect! Try Again. \n");
+			}
+		}
+
+		try {
+			if (!username.equals(preUserList.get(1))) {
+				Thread.sleep(100);
+			}
+			sock = new Socket(serverIP, hostingport);
+			InputStreamReader streamreader = new InputStreamReader(sock.getInputStream());
+			reader = new BufferedReader(streamreader);
+			writer = new PrintWriter(sock.getOutputStream());
+			writer.println(username + ":has connected.:Connect"); // Displays that user has connected
+			writer.flush(); // flushes the buffer
+			isConnectedToChatServer = true; // Used to see if the client is connected.
+		} catch (Exception ex) {
+			chatTextArea.append("Cannot Connect! Try Again. \n");
+			usernameField.setEditable(true);
+		}
+		ListenThreadSer();
 	}
 
 	/**
@@ -187,6 +255,9 @@ public class ChatMain extends javax.swing.JFrame {
 		String directoryMessage = "DI", serverMessage = "SE";
 
 		for (String m : messages) {
+			if (m.equals("")) {
+				continue;
+			}
 			// System.out.println(m);
 			String[] dataTotal = m.split(":");
 			// System.out.println(dataTotal[0].trim());
@@ -198,9 +269,6 @@ public class ChatMain extends javax.swing.JFrame {
 				// comArea.append("No Conditions were met, the message was not from the Client
 				// or Server. \n");
 			}
-
-			// comArea.append(messageRecieved + "\n");
-			// userUpdate(messageRecieved);
 		}
 
 	}
@@ -208,9 +276,6 @@ public class ChatMain extends javax.swing.JFrame {
 	private void printOnlineUsers(String[] dataTotal) {
 		String online = "ON", offline = "OF", listAllUsers = "LI", hostingAServer = "HO", doneHostingAServer = "DH",
 				joinServer = "JO", leaveServer = "LS";
-
-		// textAllUsersOnline.append("Received:" + dataTotal[0] + "," + dataTotal[1] +
-		// "," + dataTotal[2] + "\n");
 
 		if (online.equals(dataTotal[1].trim())) {
 			textAllUsersOnline.setText(null);
@@ -220,10 +285,6 @@ public class ChatMain extends javax.swing.JFrame {
 				textAllUsersOnline.append(dataTotal[i].trim() + "\n");
 			}
 
-			// onlineUsers.add(dataTotal[2].trim());
-			// comArea.append("online users at check: " + onlineUsers.get(0) + "\n");
-			// comArea.append("Added User:" + dataTotal[2].trim() + "\n") ;
-			// tellEveryoneAllOnlineUsers();
 		} else if (offline.equals(dataTotal[1].trim())) {
 			// TODO: check if it exists...might crash otherwise
 			// comAreaOnlineUsers.append("Deleting user:" + dataTotal[2].trim() + "\n");
@@ -238,8 +299,6 @@ public class ChatMain extends javax.swing.JFrame {
 				if (i == 2 || i % 4 == 2) {
 					hostTextArea.append(dataTotal[i].trim() + " R:" + dataTotal[i + 3].trim() + "\n");
 				}
-
-				// System.out.println(dataTotal[4]);
 			}
 		} else if (doneHostingAServer.equals(dataTotal[1].trim())) {
 			// TODO: user stopped hosting a server
@@ -449,7 +508,7 @@ public class ChatMain extends javax.swing.JFrame {
 		contentPane.add(btnJoin);
 
 		hostnameField = new JTextField();
-		hostnameField.setText("Enter Host Name");
+		hostnameField.setText("Enter HostName");
 		hostnameField.setBounds(125, 55, 110, 20);
 		contentPane.add(hostnameField);
 		hostnameField.setColumns(10);
@@ -515,9 +574,7 @@ public class ChatMain extends javax.swing.JFrame {
 	}
 
 	private void queryButtonActionPerformed(java.awt.event.ActionEvent evt) {
-
 		username = usernameFieldOnline.getText();
-
 		try {
 			DatagramSocket datagramSocket = new DatagramSocket();
 			InetAddress receiverAddress = InetAddress.getLocalHost();
@@ -548,8 +605,6 @@ public class ChatMain extends javax.swing.JFrame {
 		String tempIP = "";
 		for (int i = 0; i < allHostUsers.size(); i++) {
 
-			// System.out.println(allHostUsers.get(i));
-
 			if (hostname.equals(allHostUsers.get(i))) {
 
 				portstr = allHostUsers.get(i + 2).trim();
@@ -559,6 +614,7 @@ public class ChatMain extends javax.swing.JFrame {
 		}
 
 		int portX = Integer.parseInt(portstr);
+		hostingport = portX;
 
 		if (isConnectedToChatServer == false && isConnectedToDirServer == true) {
 			try {
@@ -575,7 +631,6 @@ public class ChatMain extends javax.swing.JFrame {
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length, receiverAddress, dirport);
 				datagramSocket.send(packet);
 				datagramSocket.close();
-				// ListenThreadDir();
 
 			} catch (Exception ex) {
 
@@ -601,11 +656,6 @@ public class ChatMain extends javax.swing.JFrame {
 
 			ListenThreadSer();
 		}
-		/*
-		 * else if (isConnectedToChatServer == true) {
-		 * chatTextArea.append("You are already connected. \n"); }
-		 */
-
 	}
 
 	private void goOfflineButtonActionPerformed(java.awt.event.ActionEvent evt) {
@@ -624,7 +674,6 @@ public class ChatMain extends javax.swing.JFrame {
 			datagramSocket.send(packet);
 
 			datagramSocket.close();
-			// ListenThreadDir();
 			isConnectedToDirServer = false;
 			usernameFieldOnline.setEditable(true);
 			// writer.println(messageToSend);
@@ -633,19 +682,12 @@ public class ChatMain extends javax.swing.JFrame {
 			textAllUsersOnline.append("Cannot Connect! Try Again. \n");
 			usernameFieldOnline.setEditable(true);
 		}
-
-		// }
-		// else if (isConnectedToDirServer == true) {
-		// comAreaOnlineUsers.append("You are already connected. \n");
-		// }
 	}
 
 	/*
 	 * This one is using the UDP since it acts directly with the Directory Server
 	 */
 	private void goOnlineButtonActionPerformed(java.awt.event.ActionEvent evt) {
-
-		// ListenThreadDir();
 
 		if (isConnectedToDirServer == false) {
 			username = usernameFieldOnline.getText();
@@ -704,7 +746,6 @@ public class ChatMain extends javax.swing.JFrame {
 				DatagramPacket packet = new DatagramPacket(buffer, buffer.length, receiverAddress, dirport);
 				datagramSocket.send(packet);
 				datagramSocket.close();
-				// ListenThreadDir();
 
 			} catch (Exception ex) {
 
@@ -714,7 +755,7 @@ public class ChatMain extends javax.swing.JFrame {
 		// TODO add your handling code here:
 		if (isConnectedToChatServer == false && isConnectedToDirServer == true) {
 			initChatClient();
-			PeerServer p2p = new PeerServer(hostingport);
+			p2p = new PeerServer(hostingport);
 			p2p.setVisible(true);
 
 			username = usernameField.getText();
@@ -758,7 +799,7 @@ public class ChatMain extends javax.swing.JFrame {
 		try {
 			DatagramSocket datagramSocket = new DatagramSocket();
 
-			String messageToSend = "CL:DH:" + username + ":" + serverIP + ":" + hostingport;
+			String messageToSend = "CL:DH:" + preUserList.get(1) + ":" + serverIP + ":" + hostingport + ":" + rating;
 
 			byte[] buffer = messageToSend.getBytes();
 			InetAddress receiverAddress = InetAddress.getLocalHost();
@@ -767,15 +808,11 @@ public class ChatMain extends javax.swing.JFrame {
 			datagramSocket.send(packet);
 
 			datagramSocket.close();
-			// ListenThreadDir();
-
-			// writer.println(messageToSend);
 
 		} catch (Exception ex) {
 			textAllUsersOnline.append("Cannot Connect! Try Again. \n");
 			usernameFieldOnline.setEditable(true);
 		}
-
 		initRoomToJoin();
 
 	}
@@ -786,18 +823,14 @@ public class ChatMain extends javax.swing.JFrame {
 	 * @param evt the evt
 	 */
 	private void sendButtonActionPerformed(java.awt.event.ActionEvent evt) {
-		// TODO add your handling code here:
+		// TODO add handling code here:
 		String nothing = "";
 		if ((inputTextArea.getText()).equals(nothing)) {
 			inputTextArea.setText("");
 			inputTextArea.requestFocus();
 		} else {
-			try {
-				writer.println(username + ":" + inputTextArea.getText() + ":" + "Chat");
-				writer.flush(); // flushes the buffer
-			} catch (Exception ex) {
-				chatTextArea.append("Message was not sent. \n");
-			}
+			writer.println(username + ":" + inputTextArea.getText() + ":" + "Chat");
+			writer.flush(); // flushes the buffer
 			inputTextArea.setText("");
 			inputTextArea.requestFocus();
 		}

@@ -61,6 +61,7 @@ public class DirectoryServer extends JFrame {
 
 		comArea = new JTextArea();
 		scrollPane.setViewportView(comArea);
+		comArea.setEditable(false);
 
 		JButton btnStart = new JButton("Start");
 		btnStart.addActionListener(new ActionListener() {
@@ -155,7 +156,7 @@ public class DirectoryServer extends JFrame {
 	 */
 	public void userUpdate(String[] dataTotal) {
 		String online = "ON", offline = "OF", listAllUsers = "LI", hostingAServer = "HO", doneHostingAServer = "DH",
-				joinServer = "JO", leaveServer = "LS";
+				joinServer = "JO", leaveServer = "LS", failServer = "FH";
 
 		// dataTotal = dataTotal.split(":");
 
@@ -193,29 +194,21 @@ public class DirectoryServer extends JFrame {
 		} else if (doneHostingAServer.equals(dataTotal[1].trim())) {
 			// TODO: user stopped hosting a server
 
-			comArea.append("Done Hosting: " + dataTotal[2] + ":" + dataTotal[3] + ":" + dataTotal[4] + "\n");
+			comArea.append("Done Hosting: " + dataTotal[2] + ":" + dataTotal[3] + ":" + dataTotal[4] + ":"
+					+ dataTotal[5] + "\n");
 
 			for (int i = 0; i < hostUsers.size(); i++) {
 
 				// comArea.append(dataTotal[4].trim());
 
 				if (hostUsers.get(i).contains(dataTotal[4].trim())) {
-					String temp = hostUsers.get(i);
-
-					// comArea.append("Yes it contains it");
-					int rate = Integer.parseInt(
-							temp.substring(temp.lastIndexOf(dataTotal[4].trim()) + dataTotal[4].trim().length() + 1));
-					rate--;
-					String rates = Integer.toString(rate);
-					String temp2 = temp.substring(0, (temp.length() - 1));
-					// System.out.println(temp2);
-					hostUsers.set(i, temp2 + rates);
-					// System.out.println(hostUsers.get(i));
+					String temp = dataTotal[2].trim() + ":" + dataTotal[3].trim() + ":" + dataTotal[4].trim() + ":"
+							+ dataTotal[5].trim();
+					hostUsers.set(i, temp);
 				}
 
 			}
-
-			hostUsers.remove(dataTotal[2].trim());
+			// hostUsers.remove(dataTotal[2].trim());
 			comArea.append("User Hosting Check:" + hostUsers.get(0) + "\n");
 
 		} else if (joinServer.equals(dataTotal[1].trim())) {
@@ -242,6 +235,24 @@ public class DirectoryServer extends JFrame {
 			// TODO: user joined a server
 		} else if (leaveServer.equals(dataTotal[1].trim())) {
 			// TODO: user leaves a server
+		} else if (failServer.equals(dataTotal[1].trim())) {
+			comArea.append("Fail Hosting: " + dataTotal[2] + ":" + dataTotal[3] + ":" + dataTotal[4] + "\n");
+
+			for (int i = 0; i < hostUsers.size(); i++) {
+
+				String preName = "";
+				if (hostUsers.get(i).contains(dataTotal[4].trim())) {
+					String[] data = hostUsers.get(i).split(":");
+					preName = data[0];
+					String temp = dataTotal[2].trim() + ":" + dataTotal[3].trim() + ":" + dataTotal[4].trim() + ":"
+							+ dataTotal[5].trim();
+					hostUsers.set(i, temp);
+				}
+				onlineUsers.remove(preName.trim());
+			}
+
+			hostUsers.remove(dataTotal[2].trim());
+			comArea.append("User Hosting Check:" + hostUsers.get(0) + "\n");
 		} else {
 			comArea.append(dataTotal[1].trim().compareTo(offline) + "\n");
 			comArea.append("No Conditions were met. \n");
