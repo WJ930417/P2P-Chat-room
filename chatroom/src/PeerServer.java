@@ -170,63 +170,64 @@ public class PeerServer extends JFrame {
 	}
 
 	public void tellEveryone(String message) {
-		  // sends message to everyone connected to server
-		  
-		  String[] messages = message.split(":");
+		// sends message to everyone connected to server
 
-		  if (messages[1].charAt(0) == '@') {
-		   int idx = messages[1].indexOf(" ");
-		   if (idx == -1) {
-		    
-		   } else {
-		    String name = messages[1].substring(1,idx);
-		    if (onlineUsers.contains(name)) {
-		     tellOnePerson(message);
-		     return;
-		    }
-		   }
-		  }
-		  Iterator<PrintWriter> it = clientMessages.iterator();
-		  
-		  while (it.hasNext()) {
-		   try {
-		    PrintWriter printer = (PrintWriter) it.next();
-		    printer.println(message);
-		    comArea.append("Sending: " + message + "\n");
-		    printer.flush();
-		    comArea.setCaretPosition(comArea.getDocument().getLength());
-		    
-		   } // end try
-		   catch (Exception ex) {
-		    comArea.append("cannot send message \n");
-		   } 
-		  }
-		 }
+		String[] messages = message.split(":");
 
-		 public void tellOnePerson(String message) {
+		if (messages[1].charAt(0) == '@') {
+			int idx = messages[1].indexOf(" ");
+			if (idx == -1) {
 
-		  String[] messages = message.split(":");
-		  String sender = messages[0];
-		  String state = messages[2];
-		  int idx = messages[1].indexOf(" ");
-		  String name = messages[1].substring(1,idx);
-		  String content = messages[1].substring(idx).trim();
+			} else {
+				String name = messages[1].substring(1, idx);
+				if (onlineUsers.contains(name)) {
+					tellOnePerson(message);
+					return;
+				}
+			}
+		}
+		Iterator<PrintWriter> it = clientMessages.iterator();
 
-		  idx = onlineUsers.indexOf(name);
-		  Iterator<PrintWriter> it = clientMessages.iterator();
-		  try {
+		while (it.hasNext()) {
+			try {
+				PrintWriter printer = (PrintWriter) it.next();
+				printer.println(message);
+				comArea.append("Sending: " + message + "\n");
+				printer.flush();
+				comArea.setCaretPosition(comArea.getDocument().getLength());
 
-		   PrintWriter printer = (PrintWriter) clientMessages.get(idx);
-		   content = sender + ":" + content + ":" + state;
-		   printer.println(content);
+			} // end try
+			catch (Exception ex) {
+				comArea.append("cannot send message \n");
+			}
+		}
+	}
 
-		   comArea.append("Sending " + content + "\n");
-		   printer.flush();
-		   comArea.setCaretPosition(comArea.getDocument().getLength());
+	public void tellOnePerson(String message) {
 
-		  } catch (Exception ex) {
-		   comArea.append("cannot send message \n");
-		  }
-		  return;
-		 }
+		String[] messages = message.split(":");
+		String sender = messages[0];
+		String state = messages[2];
+		int idx = messages[1].indexOf(" ");
+		String name = messages[1].substring(1, idx);
+		String content = messages[1].substring(idx).trim();
+
+		idx = onlineUsers.indexOf(name);
+
+		try {
+
+			PrintWriter printer = (PrintWriter) clientMessages.get(idx);
+			content = "(Private) " + content;
+			content = sender + ":" + content + ":" + state;
+			printer.println(content);
+
+			comArea.append("Sending " + content + "\n");
+			printer.flush();
+			comArea.setCaretPosition(comArea.getDocument().getLength());
+
+		} catch (Exception ex) {
+			comArea.append("cannot send message \n");
+		}
+		return;
+	}
 }
